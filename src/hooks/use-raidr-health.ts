@@ -9,6 +9,10 @@ import { queryKeys } from "./query-keys";
 import { STALE_TIMES } from "./query-config";
 import { useRaidrClient } from "./use-raidr-client";
 
+/**
+ * API health check, cached for `STALE_TIMES.HEALTH` (1 min). `options`
+ * accepts any `useQuery` option except `queryKey`/`queryFn`.
+ */
 export const useRaidrHealth = (
   networkClient: NetworkClient,
   baseUrl: string,

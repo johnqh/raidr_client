@@ -1,3 +1,13 @@
+/**
+ * HTTP client for raidr_api.
+ *
+ * Every request goes through the injected `NetworkClient` (never `fetch`), so
+ * the same class runs in the web app, React Native and tests with
+ * `MockNetworkClient`. Errors are not caught here: the NetworkClient throws
+ * (the web one from `@sudobility/di` throws `NetworkError` with the HTTP
+ * status, 0 when the API is unreachable, 408 on timeout) and the rejection
+ * reaches the caller or TanStack Query unchanged.
+ */
 import type { NetworkClient } from "@sudobility/types";
 import {
   type BaseResponse,
@@ -23,6 +33,12 @@ import {
 // API configuration
 // =============================================================================
 
+/**
+ * Endpoint map for one base URL. Trailing slashes are stripped so
+ * `${BASE_URL}${path}` never doubles a slash. Every caller-supplied path
+ * segment is `encodeURIComponent`-ed: a site key is a full origin such as
+ * `https://www.example.com`, whose `:` and `/` would otherwise split the path.
+ */
 const createApiConfig = (baseUrl: string) => ({
   BASE_URL: baseUrl.replace(/\/+$/, ""),
   ENDPOINTS: {
@@ -44,17 +60,24 @@ const createApiConfig = (baseUrl: string) => ({
   },
 });
 
+/** A query-string value; `undefined` means "omit this parameter". */
 type QueryValue = string | number | boolean | undefined;
 
+/** Options for the private `request` helper. */
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
   /** Shared write key; sent as X-API-Key. Never needed for GET. */
   apiKey?: string;
   query?: Record<string, QueryValue>;
+  /** Passed through to the NetworkClient only when set. */
   timeout?: number;
 }
 
+/**
+ * Append a query string. `undefined` and empty-string values are dropped, so
+ * an empty search box yields `/api/v1/mcps` rather than `/api/v1/mcps?q=`.
+ */
 function withQuery(path: string, query?: Record<string, QueryValue>): string {
   if (!query) return path;
   const params = new URLSearchParams();
@@ -72,6 +95,10 @@ function withQuery(path: string, query?: Record<string, QueryValue>): string {
 /**
  * HTTP client for raidr_api. Reads are public; writes take the shared API key.
  * The NetworkClient is injected so web, native and tests share one code path.
+ *
+ * Methods resolve to the response body as the API sent it (a `BaseResponse`
+ * or `PaginatedResponse` envelope from raidr_types); nothing is validated at
+ * runtime. Prefer the hooks in `../hooks` inside React.
  */
 export class RaidrClient {
   private readonly config: ReturnType<typeof createApiConfig>;
@@ -93,6 +120,11 @@ export class RaidrClient {
     return `${this.config.BASE_URL}${this.config.ENDPOINTS.MCP_PROXY(apiHost)}`;
   }
 
+  /**
+   * The single place a request is built: base URL + path + query, JSON
+   * headers, and `X-API-Key` only when a key is given. Returns
+   * `response.data`, i.e. the API's JSON envelope.
+   */
   private async request<T>(
     endpoint: string,
     options: RequestOptions = {},
@@ -115,20 +147,24 @@ export class RaidrClient {
 
   // ---- Health ----
 
+  /** `GET /` - service name and status; used to monitor availability. */
   getHealth(): Promise<BaseResponse<HealthCheckData>> {
     return this.request(this.config.ENDPOINTS.HEALTH);
   }
 
   // ---- MCPs ----
 
+  /** `GET /api/v1/mcps` - one page of MCP summaries (`q`/`limit`/`offset`). */
   getMcps(params?: ListQueryParams): Promise<PaginatedResponse<McpSummary>> {
     return this.request(this.config.ENDPOINTS.MCPS, { query: { ...params } });
   }
 
+  /** `GET /api/v1/mcps/:apiHost` - one MCP with its full manifest. */
   getMcp(apiHost: string): Promise<BaseResponse<Mcp>> {
     return this.request(this.config.ENDPOINTS.MCP(apiHost));
   }
 
+  /** `POST /api/v1/mcps` - create an MCP; needs the shared write key. */
   createMcp(
     apiKey: string,
     data: McpUpsertRequest,
@@ -140,6 +176,7 @@ export class RaidrClient {
     });
   }
 
+  /** `PUT /api/v1/mcps/:apiHost` - create or replace; needs the write key. */
   upsertMcp(
     apiKey: string,
     apiHost: string,
@@ -152,6 +189,7 @@ export class RaidrClient {
     });
   }
 
+  /** `DELETE /api/v1/mcps/:apiHost` - needs the write key. */
   deleteMcp(apiKey: string, apiHost: string): Promise<BaseResponse<Mcp>> {
     return this.request(this.config.ENDPOINTS.MCP(apiHost), {
       method: "DELETE",
@@ -161,6 +199,7 @@ export class RaidrClient {
 
   // ---- Skills ----
 
+  /** `GET /api/v1/skills` - one page of skill summaries. */
   getSkills(
     params?: ListQueryParams,
   ): Promise<PaginatedResponse<SkillSummary>> {
@@ -169,10 +208,12 @@ export class RaidrClient {
     });
   }
 
+  /** `GET /api/v1/skills/:apiHost` - one skill including its SKILL.md text. */
   getSkill(apiHost: string): Promise<BaseResponse<Skill>> {
     return this.request(this.config.ENDPOINTS.SKILL(apiHost));
   }
 
+  /** `POST /api/v1/skills` - create a skill; needs the write key. */
   createSkill(
     apiKey: string,
     data: SkillCreateRequest,
@@ -184,6 +225,7 @@ export class RaidrClient {
     });
   }
 
+  /** `PUT /api/v1/skills/:apiHost` - create or replace; needs the write key. */
   upsertSkill(
     apiKey: string,
     apiHost: string,
@@ -196,6 +238,7 @@ export class RaidrClient {
     });
   }
 
+  /** `DELETE /api/v1/skills/:apiHost` - needs the write key. */
   deleteSkill(apiKey: string, apiHost: string): Promise<BaseResponse<Skill>> {
     return this.request(this.config.ENDPOINTS.SKILL(apiHost), {
       method: "DELETE",
@@ -205,14 +248,20 @@ export class RaidrClient {
 
   // ---- Sites ----
 
+  /**
+   * `GET /api/v1/sites` - one page of sites. `apiHost` narrows to sites seen
+   * calling that host (the MCP detail page uses it).
+   */
   getSites(params?: SiteListQueryParams): Promise<PaginatedResponse<Site>> {
     return this.request(this.config.ENDPOINTS.SITES, { query: { ...params } });
   }
 
+  /** `GET /api/v1/sites/:origin` - a full origin, URL-encoded here. */
   getSite(origin: string): Promise<BaseResponse<Site>> {
     return this.request(this.config.ENDPOINTS.SITE(origin));
   }
 
+  /** `POST /api/v1/sites` - create a site record; needs the write key. */
   createSite(
     apiKey: string,
     data: SiteCreateRequest,
@@ -224,6 +273,7 @@ export class RaidrClient {
     });
   }
 
+  /** `PUT /api/v1/sites/:origin` - create or replace; needs the write key. */
   upsertSite(
     apiKey: string,
     origin: string,
@@ -236,6 +286,7 @@ export class RaidrClient {
     });
   }
 
+  /** `DELETE /api/v1/sites/:origin` - needs the write key. No hook wraps it. */
   deleteSite(apiKey: string, origin: string): Promise<BaseResponse<Site>> {
     return this.request(this.config.ENDPOINTS.SITE(origin), {
       method: "DELETE",
@@ -244,6 +295,7 @@ export class RaidrClient {
   }
 }
 
+/** Factory equivalent of `new RaidrClient(networkClient, baseUrl)`. */
 export const createRaidrClient = (
   networkClient: NetworkClient,
   baseUrl: string,

@@ -1,3 +1,7 @@
+/**
+ * Hooks for crawled sites, keyed by origin. There is no delete hook, although
+ * `RaidrClient.deleteSite` exists.
+ */
 import {
   useMutation,
   type UseMutationResult,
@@ -18,8 +22,10 @@ import { queryKeys } from "./query-keys";
 import { STALE_TIMES } from "./query-config";
 import { useRaidrClient } from "./use-raidr-client";
 
+/** Caller-overridable `useQuery` options; key and fetcher are fixed. */
 type QueryOpts<T> = Omit<UseQueryOptions<T>, "queryKey" | "queryFn">;
 
+/** One page of sites; pass `apiHost` to list only sites calling that host. */
 export const useRaidrSites = (
   networkClient: NetworkClient,
   baseUrl: string,
@@ -35,6 +41,7 @@ export const useRaidrSites = (
   });
 };
 
+/** One site by origin. Disabled while `origin` is empty (not overridable). */
 export const useRaidrSite = (
   networkClient: NetworkClient,
   baseUrl: string,
@@ -51,6 +58,7 @@ export const useRaidrSite = (
   });
 };
 
+/** Create or replace a site with the write key passed as `token`. */
 export const useRaidrUpsertSite = (
   networkClient: NetworkClient,
   baseUrl: string,

@@ -23,8 +23,10 @@ import { queryKeys } from "./query-keys";
 import { STALE_TIMES } from "./query-config";
 import { useRaidrClient } from "./use-raidr-client";
 
+/** Caller-overridable `useQuery` options; key and fetcher are fixed. */
 type QueryOpts<T> = Omit<UseQueryOptions<T>, "queryKey" | "queryFn">;
 
+/** One page of the MCP catalog; each filter combination caches separately. */
 export const useRaidrMcps = (
   networkClient: NetworkClient,
   baseUrl: string,
@@ -40,6 +42,12 @@ export const useRaidrMcps = (
   });
 };
 
+/**
+ * One MCP by API host. Disabled while `apiHost` is empty; `enabled` is set
+ * after the options spread so a caller cannot force a request for `""`.
+ * A missing MCP rejects with a 404 `NetworkError`; raidr_lib turns that into
+ * `notFound` and passes `retry: false`.
+ */
 export const useRaidrMcp = (
   networkClient: NetworkClient,
   baseUrl: string,
@@ -56,6 +64,7 @@ export const useRaidrMcp = (
   });
 };
 
+/** Create or replace an MCP with the write key passed as `token`. */
 export const useRaidrUpsertMcp = (
   networkClient: NetworkClient,
   baseUrl: string,
@@ -78,6 +87,10 @@ export const useRaidrUpsertMcp = (
   });
 };
 
+/**
+ * Delete an MCP with the write key passed as `token`. The detail entry is
+ * removed rather than invalidated, since refetching it could only 404.
+ */
 export const useRaidrDeleteMcp = (
   networkClient: NetworkClient,
   baseUrl: string,

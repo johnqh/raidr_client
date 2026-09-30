@@ -1,3 +1,7 @@
+/**
+ * Hooks for agent skills, keyed by API host (one SKILL.md per host). Same
+ * shape as the MCP hooks.
+ */
 import {
   useMutation,
   type UseMutationResult,
@@ -19,8 +23,10 @@ import { queryKeys } from "./query-keys";
 import { STALE_TIMES } from "./query-config";
 import { useRaidrClient } from "./use-raidr-client";
 
+/** Caller-overridable `useQuery` options; key and fetcher are fixed. */
 type QueryOpts<T> = Omit<UseQueryOptions<T>, "queryKey" | "queryFn">;
 
+/** One page of the skill catalog; each filter combination caches separately. */
 export const useRaidrSkills = (
   networkClient: NetworkClient,
   baseUrl: string,
@@ -36,6 +42,11 @@ export const useRaidrSkills = (
   });
 };
 
+/**
+ * One skill by API host. `retry: false` by default (callers may override it)
+ * because the MCP page asks for a skill that often does not exist. Disabled
+ * while `apiHost` is empty (not overridable).
+ */
 export const useRaidrSkill = (
   networkClient: NetworkClient,
   baseUrl: string,
@@ -54,6 +65,7 @@ export const useRaidrSkill = (
   });
 };
 
+/** Create or replace a skill with the write key passed as `token`. */
 export const useRaidrUpsertSkill = (
   networkClient: NetworkClient,
   baseUrl: string,
@@ -76,6 +88,7 @@ export const useRaidrUpsertSkill = (
   });
 };
 
+/** Delete a skill; removes (not invalidates) its detail entry. */
 export const useRaidrDeleteSkill = (
   networkClient: NetworkClient,
   baseUrl: string,

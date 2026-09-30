@@ -1,3 +1,4 @@
+/** Barrel for the TanStack Query hooks; re-exported from `src/index.ts`. */
 export { queryKeys } from "./query-keys";
 export { STALE_TIMES } from "./query-config";
 export { useRaidrClient } from "./use-raidr-client";
