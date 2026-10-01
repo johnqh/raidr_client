@@ -45,6 +45,8 @@ const createApiConfig = (baseUrl: string) => ({
     HEALTH: "/",
     MCPS: "/api/v1/mcps",
     MCP: (apiHost: string) => `/api/v1/mcps/${encodeURIComponent(apiHost)}`,
+    MCP_SUMMARY: (apiHost: string) =>
+      `/api/v1/mcps/${encodeURIComponent(apiHost)}/summary`,
     SKILLS: "/api/v1/skills",
     SKILL: (apiHost: string) => `/api/v1/skills/${encodeURIComponent(apiHost)}`,
     SKILL_MARKDOWN: (apiHost: string) =>
@@ -160,8 +162,22 @@ export class RaidrClient {
   }
 
   /** `GET /api/v1/mcps/:apiHost` - one MCP with its full manifest. */
-  getMcp(apiHost: string): Promise<BaseResponse<Mcp>> {
-    return this.request(this.config.ENDPOINTS.MCP(apiHost));
+  /**
+   * One MCP with its full manifest. Needs a signed-in user or an entity API
+   * key: in the browser the Firebase-aware NetworkClient adds the token
+   * itself; elsewhere pass `apiKey` (`raidr_...`), sent as X-API-Key.
+   * Anonymous callers get 401; use {@link getMcpSummary} for them.
+   */
+  getMcp(apiHost: string, apiKey?: string): Promise<BaseResponse<Mcp>> {
+    return this.request(
+      this.config.ENDPOINTS.MCP(apiHost),
+      apiKey ? { apiKey } : {},
+    );
+  }
+
+  /** Public top-level info for one MCP (no manifest); no auth needed. */
+  getMcpSummary(apiHost: string): Promise<BaseResponse<McpSummary>> {
+    return this.request(this.config.ENDPOINTS.MCP_SUMMARY(apiHost));
   }
 
   /** `POST /api/v1/mcps` - create an MCP; needs the shared write key. */

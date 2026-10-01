@@ -22,6 +22,7 @@ export {
   useRaidrInvalidation,
   useRaidrMcp,
   useRaidrMcps,
+  useRaidrMcpSummary,
   useRaidrSite,
   useRaidrSites,
   useRaidrSkill,

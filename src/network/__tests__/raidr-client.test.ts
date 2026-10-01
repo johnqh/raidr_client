@@ -60,3 +60,31 @@ describe("RaidrClient", () => {
     expect(network.getRequests()).toHaveLength(0);
   });
 });
+
+describe("RaidrClient MCP auth", () => {
+  it("fetches the public summary without credentials", async () => {
+    const network = new MockNetworkClient();
+    const client = createRaidrClient(network, BASE_URL);
+    const url = `${BASE_URL}/api/v1/mcps/api.example.com/summary`;
+    network.setMockResponse(url, { data: { success: true } }, "GET");
+    await client.getMcpSummary("api.example.com");
+    const call = network.getRequests().at(-1)!;
+    expect(call.url).toBe(url);
+    expect(call.options?.headers?.["X-API-Key"]).toBeUndefined();
+  });
+
+  it("sends an entity API key on the full manifest when given one", async () => {
+    const network = new MockNetworkClient();
+    const client = createRaidrClient(network, BASE_URL);
+    const url = `${BASE_URL}/api/v1/mcps/api.example.com`;
+    network.setMockResponse(url, { data: { success: true } }, "GET");
+    await client.getMcp("api.example.com", "raidr_abc");
+    expect(network.getRequests().at(-1)!.options?.headers?.["X-API-Key"]).toBe(
+      "raidr_abc",
+    );
+    await client.getMcp("api.example.com");
+    expect(
+      network.getRequests().at(-1)!.options?.headers?.["X-API-Key"],
+    ).toBeUndefined();
+  });
+});

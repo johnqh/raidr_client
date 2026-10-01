@@ -89,7 +89,8 @@ src/
 | --- | --- | --- |
 | GET | `/` | `getHealth` |
 | GET, POST | `/api/v1/mcps` | `getMcps(params)`, `createMcp` |
-| GET, PUT, DELETE | `/api/v1/mcps/:apiHost` | `getMcp`, `upsertMcp`, `deleteMcp` |
+| GET | `/api/v1/mcps/:apiHost/summary` (public) | `getMcpSummary` |
+| GET, PUT, DELETE | `/api/v1/mcps/:apiHost` | `getMcp(apiHost, apiKey?)` (needs auth), `upsertMcp`, `deleteMcp` |
 | GET, POST | `/api/v1/skills` | `getSkills(params)`, `createSkill` |
 | GET, PUT, DELETE | `/api/v1/skills/:apiHost` | `getSkill`, `upsertSkill`, `deleteSkill` |
 | (URL only) | `/api/v1/skills/:apiHost/SKILL.md` | `skillMarkdownUrl` |
@@ -101,7 +102,13 @@ src/
   (`https://www.example.com` → `https%3A%2F%2Fwww.example.com`); a test pins this.
 - `withQuery` drops `undefined` and `""`, so an empty search sends no `q`.
 - Write methods take the shared write key first and send it as `X-API-Key`
-  (`RAIDR_API_KEY_HEADER`); reads never send it. Trailing slashes on the base URL
+  (`RAIDR_API_KEY_HEADER`). `getMcp` is the one read that needs a credential:
+  in a browser the NetworkClient adds the user's Firebase token itself; a
+  script passes an entity key (`raidr_…`) as `apiKey`, also sent as
+  `X-API-Key`. Anonymous `getMcp` is a 401; anonymous callers use
+  `getMcpSummary` / `useRaidrMcpSummary` (query key `mcpSummary(apiHost)`).
+- Entity, member, invitation and entity-API-key endpoints are not here: the
+  app uses `@sudobility/entity_client` against the same base URL. Trailing slashes on the base URL
   are stripped.
 
 ## Conventions

@@ -7,6 +7,7 @@ export {
   useRaidrDeleteMcp,
   useRaidrMcp,
   useRaidrMcps,
+  useRaidrMcpSummary,
   useRaidrUpsertMcp,
 } from "./use-raidr-mcps";
 export {

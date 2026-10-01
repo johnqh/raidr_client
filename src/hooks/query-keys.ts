@@ -31,6 +31,9 @@ export const queryKeys = {
         : ([...raidrBase(), "mcps"] as const),
     /** One MCP by API host. */
     mcp: (apiHost: string) => [...raidrBase(), "mcp", apiHost] as const,
+    /** Public summary of one MCP; a separate key so auth changes never mix it with the full row. */
+    mcpSummary: (apiHost: string) =>
+      [...raidrBase(), "mcp-summary", apiHost] as const,
     /** Skill list; omit `filters` for the prefix that matches every page. */
     skills: (filters?: ListQueryParams) =>
       filters

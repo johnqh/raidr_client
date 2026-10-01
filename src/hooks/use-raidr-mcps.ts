@@ -48,6 +48,30 @@ export const useRaidrMcps = (
  * A missing MCP rejects with a 404 `NetworkError`; raidr_lib turns that into
  * `notFound` and passes `retry: false`.
  */
+/**
+ * Public summary of one MCP (title, description, version, tool count). Works
+ * signed out; the app shows it next to the sign-in prompt.
+ */
+export const useRaidrMcpSummary = (
+  networkClient: NetworkClient,
+  baseUrl: string,
+  apiHost: string,
+  options?: QueryOpts<BaseResponse<McpSummary>>,
+): UseQueryResult<BaseResponse<McpSummary>> => {
+  const client = useRaidrClient(networkClient, baseUrl);
+  return useQuery({
+    queryKey: queryKeys.raidr.mcpSummary(apiHost),
+    queryFn: () => client.getMcpSummary(apiHost),
+    staleTime: STALE_TIMES.DETAIL,
+    ...options,
+    enabled: apiHost.length > 0 && (options?.enabled ?? true),
+  });
+};
+
+/**
+ * One MCP with its full manifest. Requires auth: pass `enabled: false` while
+ * signed out, or the query fails with a 401 NetworkError.
+ */
 export const useRaidrMcp = (
   networkClient: NetworkClient,
   baseUrl: string,
