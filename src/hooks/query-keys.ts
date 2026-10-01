@@ -5,6 +5,7 @@
  * their filter object so distinct filters cache separately.
  */
 import type {
+  CrawlJobListQueryParams,
   ListQueryParams,
   SiteListQueryParams,
 } from "@sudobility/raidr_types";
@@ -48,5 +49,16 @@ export const queryKeys = {
         : ([...raidrBase(), "sites"] as const),
     /** One site by origin (unencoded). */
     site: (origin: string) => [...raidrBase(), "site", origin] as const,
+    /** MCP servers made from one site. */
+    siteMcps: (origin: string) =>
+      [...raidrBase(), "site-mcps", origin] as const,
+    /** Skills made from one site. */
+    siteSkills: (origin: string) =>
+      [...raidrBase(), "site-skills", origin] as const,
+    /** Crawl queue; omit `filters` for the prefix that matches every page. */
+    crawlJobs: (filters?: CrawlJobListQueryParams) =>
+      filters
+        ? ([...raidrBase(), "crawl-jobs", filters] as const)
+        : ([...raidrBase(), "crawl-jobs"] as const),
   },
 } as const;

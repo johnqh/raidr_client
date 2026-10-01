@@ -96,6 +96,10 @@ src/
 | (URL only) | `/api/v1/skills/:apiHost/SKILL.md` | `skillMarkdownUrl` |
 | GET, POST | `/api/v1/sites` | `getSites(params)` (adds `apiHost` filter), `createSite` |
 | GET, PUT, DELETE | `/api/v1/sites/:origin` | `getSite`, `upsertSite`, `deleteSite` |
+| GET | `/api/v1/sites/:origin/mcps` | `getSiteMcps` (`useRaidrSiteMcps`) |
+| GET | `/api/v1/sites/:origin/skills` | `getSiteSkills` (`useRaidrSiteSkills`) |
+| GET, POST | `/api/v1/crawl-jobs` | `getCrawlJobs(params)` (`useRaidrCrawlJobs`), `enqueueCrawlJobs(apiKey, data)` (`useRaidrEnqueueCrawlJobs`) |
+| GET | `/api/v1/crawl-jobs/:id` | `getCrawlJob` |
 | (URL only) | `/mcp/:apiHost` (`MCP_PROXY_PATH`) | `mcpProxyUrl` |
 
 - Every path parameter is `encodeURIComponent`-ed. Sites are keyed by full origin

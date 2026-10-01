@@ -88,3 +88,51 @@ describe("RaidrClient MCP auth", () => {
     ).toBeUndefined();
   });
 });
+
+describe("RaidrClient crawl queue and site associations", () => {
+  it("reads a site's MCP servers and skills with the origin encoded", async () => {
+    const network = new MockNetworkClient();
+    const client = createRaidrClient(network, BASE_URL);
+    const mcps = `${BASE_URL}/api/v1/sites/https%3A%2F%2Fsuno.com/mcps`;
+    const skills = `${BASE_URL}/api/v1/sites/https%3A%2F%2Fsuno.com/skills`;
+    network.setMockResponse(mcps, { data: { success: true, data: [] } }, "GET");
+    network.setMockResponse(
+      skills,
+      { data: { success: true, data: [] } },
+      "GET",
+    );
+    await client.getSiteMcps("https://suno.com");
+    expect(network.getRequests().at(-1)!.url).toBe(mcps);
+    await client.getSiteSkills("https://suno.com");
+    expect(network.getRequests().at(-1)!.url).toBe(skills);
+  });
+
+  it("lists the queue publicly and enqueues with the write key", async () => {
+    const network = new MockNetworkClient();
+    const client = createRaidrClient(network, BASE_URL);
+    const list = `${BASE_URL}/api/v1/crawl-jobs?status=queued&limit=5`;
+    network.setMockResponse(list, { data: { success: true, data: [] } }, "GET");
+    await client.getCrawlJobs({ status: "queued", limit: 5 });
+    expect(
+      network.getRequests().at(-1)!.options?.headers?.["X-API-Key"],
+    ).toBeUndefined();
+
+    const post = `${BASE_URL}/api/v1/crawl-jobs`;
+    network.setMockResponse(
+      post,
+      { data: { success: true, data: [] } },
+      "POST",
+    );
+    await client.enqueueCrawlJobs(KEY, {
+      origins: ["https://suno.com"],
+      force: true,
+    });
+    const call = network.getRequests().at(-1)!;
+    expect(call.method).toBe("POST");
+    expect(call.options?.headers?.["X-API-Key"]).toBe(KEY);
+    expect(JSON.parse(call.body as string)).toEqual({
+      origins: ["https://suno.com"],
+      force: true,
+    });
+  });
+});

@@ -11,6 +11,10 @@
 import type { NetworkClient } from "@sudobility/types";
 import {
   type BaseResponse,
+  type CrawlJob,
+  type CrawlJobEnqueueRequest,
+  type CrawlJobEnqueueResult,
+  type CrawlJobListQueryParams,
   type HealthCheckData,
   type ListQueryParams,
   type Mcp,
@@ -53,6 +57,12 @@ const createApiConfig = (baseUrl: string) => ({
       `/api/v1/skills/${encodeURIComponent(apiHost)}/SKILL.md`,
     SITES: "/api/v1/sites",
     SITE: (origin: string) => `/api/v1/sites/${encodeURIComponent(origin)}`,
+    SITE_MCPS: (origin: string) =>
+      `/api/v1/sites/${encodeURIComponent(origin)}/mcps`,
+    SITE_SKILLS: (origin: string) =>
+      `/api/v1/sites/${encodeURIComponent(origin)}/skills`,
+    CRAWL_JOBS: "/api/v1/crawl-jobs",
+    CRAWL_JOB: (id: string) => `/api/v1/crawl-jobs/${encodeURIComponent(id)}`,
     MCP_PROXY: (apiHost: string) =>
       `${MCP_PROXY_PATH}/${encodeURIComponent(apiHost)}`,
   },
@@ -306,6 +316,45 @@ export class RaidrClient {
   deleteSite(apiKey: string, origin: string): Promise<BaseResponse<Site>> {
     return this.request(this.config.ENDPOINTS.SITE(origin), {
       method: "DELETE",
+      apiKey,
+    });
+  }
+
+  /** `GET /api/v1/sites/:origin/mcps` - the MCP servers made from a site (summaries). */
+  getSiteMcps(origin: string): Promise<BaseResponse<McpSummary[]>> {
+    return this.request(this.config.ENDPOINTS.SITE_MCPS(origin));
+  }
+
+  /** `GET /api/v1/sites/:origin/skills` - the skills made from a site (summaries). */
+  getSiteSkills(origin: string): Promise<BaseResponse<SkillSummary[]>> {
+    return this.request(this.config.ENDPOINTS.SITE_SKILLS(origin));
+  }
+
+  /** `GET /api/v1/crawl-jobs` - the crawl queue, newest first; `status` and `q` (origin) filter it. */
+  getCrawlJobs(
+    params?: CrawlJobListQueryParams,
+  ): Promise<PaginatedResponse<CrawlJob>> {
+    return this.request(this.config.ENDPOINTS.CRAWL_JOBS, {
+      query: { ...params },
+    });
+  }
+
+  /** `GET /api/v1/crawl-jobs/:id`. */
+  getCrawlJob(id: string): Promise<BaseResponse<CrawlJob>> {
+    return this.request(this.config.ENDPOINTS.CRAWL_JOB(id));
+  }
+
+  /**
+   * `POST /api/v1/crawl-jobs` - add origins to the crawl queue; needs the
+   * write key. Sites already crawled are not queued unless `force` is set.
+   */
+  enqueueCrawlJobs(
+    apiKey: string,
+    data: CrawlJobEnqueueRequest,
+  ): Promise<BaseResponse<CrawlJobEnqueueResult[]>> {
+    return this.request(this.config.ENDPOINTS.CRAWL_JOBS, {
+      method: "POST",
+      body: data,
       apiKey,
     });
   }
