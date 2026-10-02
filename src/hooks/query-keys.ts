@@ -49,6 +49,22 @@ export const queryKeys = {
         : ([...raidrBase(), "sites"] as const),
     /** One site by origin (unencoded). */
     site: (origin: string) => [...raidrBase(), "site", origin] as const,
+    /** API doc list; omit `filters` for the prefix. */
+    apis: (filters?: ListQueryParams) =>
+      filters
+        ? ([...raidrBase(), "apis", filters] as const)
+        : ([...raidrBase(), "apis"] as const),
+    /** Full endpoint docs for one API host (needs auth). */
+    apiDoc: (apiHost: string) => [...raidrBase(), "api-doc", apiHost] as const,
+    /** Flow links touching one API host (needs auth). */
+    apiFlow: (apiHost: string) =>
+      [...raidrBase(), "api-flow", apiHost] as const,
+    /** Public summary of one API host's docs. */
+    apiSummary: (apiHost: string) =>
+      [...raidrBase(), "api-summary", apiHost] as const,
+    /** One skill by slug. */
+    skillByName: (name: string) =>
+      [...raidrBase(), "skill-by-name", name] as const,
     /** MCP servers made from one site. */
     siteMcps: (origin: string) =>
       [...raidrBase(), "site-mcps", origin] as const,

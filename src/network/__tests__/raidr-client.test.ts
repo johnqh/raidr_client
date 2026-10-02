@@ -136,3 +136,67 @@ describe("RaidrClient crawl queue and site associations", () => {
     });
   });
 });
+
+describe("RaidrClient API docs", () => {
+  it("reads docs with an optional entity key and executes with a POST body", async () => {
+    const network = new MockNetworkClient();
+    const client = createRaidrClient(network, BASE_URL);
+    const summary = `${BASE_URL}/api/v1/apis/api.example.com/summary`;
+    network.setMockResponse(summary, { data: { success: true } }, "GET");
+    await client.getApiSummary("api.example.com");
+    expect(
+      network.getRequests().at(-1)!.options?.headers?.["X-API-Key"],
+    ).toBeUndefined();
+
+    const full = `${BASE_URL}/api/v1/apis/api.example.com`;
+    network.setMockResponse(full, { data: { success: true } }, "GET");
+    await client.getApiDoc("api.example.com", "raidr_key");
+    expect(network.getRequests().at(-1)!.options?.headers?.["X-API-Key"]).toBe(
+      "raidr_key",
+    );
+
+    const exec = `${BASE_URL}/api/v1/apis/api.example.com/execute`;
+    network.setMockResponse(exec, { data: { success: true } }, "POST");
+    await client.executeApi("api.example.com", {
+      endpointId: "GET /v1/x",
+      params: { a: 1 },
+      userToken: "t",
+    });
+    const call = network.getRequests().at(-1)!;
+    expect(call.method).toBe("POST");
+    expect(JSON.parse(call.body as string)).toEqual({
+      endpointId: "GET /v1/x",
+      params: { a: 1 },
+      userToken: "t",
+    });
+  });
+
+  it("looks a skill up by slug", async () => {
+    const network = new MockNetworkClient();
+    const client = createRaidrClient(network, BASE_URL);
+    const url = `${BASE_URL}/api/v1/skills/by-name/api-example-com`;
+    network.setMockResponse(url, { data: { success: true } }, "GET");
+    await client.getSkillByName("api-example-com");
+    expect(network.getRequests().at(-1)!.url).toBe(url);
+  });
+});
+
+describe("RaidrClient API flow", () => {
+  it("reads one host's flow links", async () => {
+    const network = new MockNetworkClient();
+    const client = createRaidrClient(network, BASE_URL);
+    const url = `${BASE_URL}/api/v1/apis/api.example.com/flow`;
+    network.setMockResponse(
+      url,
+      {
+        data: {
+          success: true,
+          data: { apiHost: "api.example.com", links: [], external: [] },
+        },
+      },
+      "GET",
+    );
+    await client.getApiFlow("api.example.com");
+    expect(network.getRequests().at(-1)!.url).toBe(url);
+  });
+});

@@ -23,11 +23,11 @@ raidr_app    (web UI, Cloudflare Pages)
 | Item | Value |
 | --- | --- |
 | npm name | `@sudobility/raidr_client`, `publishConfig.access: public`, BUSL-1.1 |
-| Version | `0.1.0` (`package.json`) |
+| Version | `0.1.4` (`package.json`) |
 | Entry points | `.` (client + hooks) and `./network` (client only), per `exports` |
-| Runtime dep | `@sudobility/raidr_types` ^0.1.1 |
+| Runtime dep | `@sudobility/raidr_types` ^0.1.6 |
 | Peer deps | `@sudobility/di`, `@sudobility/types`, `@tanstack/react-query` >=5, `react` >=18 |
-| Consumers | `raidr_lib` (peer ^0.1.0); `raidr_app` (dep ^0.1.0; `HomePage` calls the hooks directly) |
+| Consumers | `raidr_lib` (peer ^0.1.4); `raidr_app` (dep ^0.1.4; `HomePage` calls the hooks directly) |
 
 ## Rules
 
@@ -51,7 +51,7 @@ Every command below was run on 2026-09-30 after the documentation pass.
 | `bun run check-all` | lint → typecheck → test:unit | exit 0 |
 | `bun run lint` | ESLint 9 on `src`; `prettier/prettier` is an error | exit 0 |
 | `bun run typecheck` | `tsc --noEmit` (tsconfig excludes `*.test.ts`) | exit 0 |
-| `bun run test:unit` (= `test:run`) | Vitest once, happy-dom | 2 files, 5 tests pass |
+| `bun run test:unit` (= `test:run`) | Vitest once, happy-dom | 2 files, 12 tests pass (re-run 2026-10-02) |
 | `bun run test:coverage` | Vitest + v8 → `coverage/` (gitignored) | exit 0, ~26% lines, no threshold |
 | `bun run build` | `tsc -p tsconfig.build.json` → `dist/` (gitignored) | exit 0 |
 | `bun run format:check` | Prettier on `src/**/*.ts` | exit 0 |
@@ -78,6 +78,8 @@ src/
     ├── use-raidr-mcps.ts         useRaidrMcps / Mcp / UpsertMcp / DeleteMcp
     ├── use-raidr-skills.ts       useRaidrSkills / Skill / UpsertSkill / DeleteSkill
     ├── use-raidr-sites.ts        useRaidrSites / Site / UpsertSite
+    ├── use-raidr-crawl.ts        useRaidrSiteMcps / SiteSkills / CrawlJobs / EnqueueCrawlJobs
+    ├── use-raidr-apis.ts         useRaidrApis / ApiSummary / ApiDoc / ApiFlow / ExecuteApi, useRaidrSkillByName
     ├── use-raidr-invalidation.ts useRaidrInvalidation (invalidates ["raidr"])
     └── __tests__/query-keys.test.ts
 .github/workflows/ci-cd.yml       johnqh/workflows unified-cicd.yml, npm-access public
@@ -93,6 +95,12 @@ src/
 | GET, PUT, DELETE | `/api/v1/mcps/:apiHost` | `getMcp(apiHost, apiKey?)` (needs auth), `upsertMcp`, `deleteMcp` |
 | GET, POST | `/api/v1/skills` | `getSkills(params)`, `createSkill` |
 | GET, PUT, DELETE | `/api/v1/skills/:apiHost` | `getSkill`, `upsertSkill`, `deleteSkill` |
+| GET | `/api/v1/skills/by-name/:name` | `getSkillByName` (`useRaidrSkillByName`, `retry: false`) |
+| GET | `/api/v1/apis` | `getApis(params)` (`useRaidrApis`) |
+| GET | `/api/v1/apis/:apiHost/summary` (public) | `getApiSummary` (`useRaidrApiSummary`) |
+| GET | `/api/v1/apis/:apiHost` | `getApiDoc(apiHost, apiKey?)` (needs auth; `useRaidrApiDoc`) |
+| GET | `/api/v1/apis/:apiHost/flow` | `getApiFlow(apiHost, apiKey?)` (needs auth; `useRaidrApiFlow`) |
+| POST | `/api/v1/apis/:apiHost/execute` | `executeApi(apiHost, data, apiKey?)` (needs auth; `useRaidrExecuteApi`) |
 | (URL only) | `/api/v1/skills/:apiHost/SKILL.md` | `skillMarkdownUrl` |
 | GET, POST | `/api/v1/sites` | `getSites(params)` (adds `apiHost` filter), `createSite` |
 | GET, PUT, DELETE | `/api/v1/sites/:origin` | `getSite`, `upsertSite`, `deleteSite` |
@@ -111,6 +119,9 @@ src/
   script passes an entity key (`raidr_…`) as `apiKey`, also sent as
   `X-API-Key`. Anonymous `getMcp` is a 401; anonymous callers use
   `getMcpSummary` / `useRaidrMcpSummary` (query key `mcpSummary(apiHost)`).
+  `getApiDoc`, `getApiFlow` and `executeApi` follow the same rule; anonymous
+  callers use `getApiSummary`. The execute body carries the upstream
+  `userToken` / `apiKey`, which raidr_api never stores.
 - Entity, member, invitation and entity-API-key endpoints are not here: the
   app uses `@sudobility/entity_client` against the same base URL. Trailing slashes on the base URL
   are stripped.
@@ -132,6 +143,9 @@ Every hook builds its client through `useRaidrClient`, memoized on
 | `health()` | `["raidr","health"]` | `useRaidrHealth` |
 | `mcps(f?)`, `skills(f?)`, `sites(f?)` | `["raidr","mcps",f]`; no `f` → 2-element prefix | list hooks pass `params ?? {}`; mutations invalidate the prefix |
 | `mcp(h)`, `skill(h)`, `site(o)` | `["raidr","mcp",h]` | detail hooks; mutations |
+| `apis(f?)` | `["raidr","apis",f]` | `useRaidrApis` |
+| `apiDoc(h)`, `apiFlow(h)`, `apiSummary(h)` | `["raidr","api-doc",h]` etc. | the API doc hooks |
+| `skillByName(n)` | `["raidr","skill-by-name",n]` | `useRaidrSkillByName` |
 
 **Stale times** (`STALE_TIMES`): `HEALTH` 1 min, `CATALOG` 5 min, `DETAIL` 10 min.
 The catalog only changes when a crawl publishes.
@@ -142,6 +156,12 @@ The catalog only changes when a crawl publishes.
   empty route param never fires a request.
 - `useRaidrSkill` defaults `retry: false` (a missing skill is normal for an MCP).
   `useRaidrMcp` and `useRaidrSite` keep TanStack's default; raidr_lib passes `retry: false`.
+- `useRaidrApiSummary`, `useRaidrApiDoc`, `useRaidrApiFlow` and
+  `useRaidrSkillByName` gate on a non-empty id the same way. Pass
+  `enabled: false` to `useRaidrApiDoc` / `useRaidrApiFlow` while signed out
+  (the API answers 401).
+- `useRaidrExecuteApi` is a mutation with variables `{ apiHost, data, apiKey? }`
+  and invalidates nothing: every run is a fresh upstream call, never cached.
 
 **Error handling.** The client catches nothing. The web NetworkClient in
 `@sudobility/di` throws `NetworkError` (`@sudobility/types`) whose `.status` is
@@ -165,7 +185,7 @@ The rejection lands in the query's `error`; raidr_lib's `isNotFoundError` and
 
 - The family release runs from `raidr_app/scripts/push_all.sh`, in this order
   (`path:wait`): `raidr_types:60 → raidr_processor:60 → raidr_client:60 →
-  raidr_lib:60 → raidr_crawler:0 → raidr_cli:0 → raidr_extension:0 → raidr_api:0 →
+  raidr_lib:60 → raidr_cli:180 → raidr_crawler:0 → raidr_extension:0 → raidr_api:0 →
   raidr_app:0 → raidr_web:0`. The sourced `workflows/scripts/push_projects.sh`
   polls npm for each new version and moves on once it is served; the number is
   only a cap. Per repo it updates `@sudobility` deps, validates, bumps the patch

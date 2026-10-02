@@ -15,6 +15,12 @@ export { createRaidrClient, RaidrClient } from "./network";
 export {
   queryKeys,
   STALE_TIMES,
+  useRaidrApiDoc,
+  useRaidrApiFlow,
+  useRaidrApis,
+  useRaidrApiSummary,
+  useRaidrExecuteApi,
+  useRaidrSkillByName,
   useRaidrClient,
   useRaidrCrawlJobs,
   useRaidrDeleteMcp,

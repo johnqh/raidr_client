@@ -10,6 +10,11 @@
  */
 import type { NetworkClient } from "@sudobility/types";
 import {
+  type ApiDocRow,
+  type ApiDocSummary,
+  type ApiExecuteRequest,
+  type ApiExecuteResult,
+  type ApiFlow,
   type BaseResponse,
   type CrawlJob,
   type CrawlJobEnqueueRequest,
@@ -51,6 +56,16 @@ const createApiConfig = (baseUrl: string) => ({
     MCP: (apiHost: string) => `/api/v1/mcps/${encodeURIComponent(apiHost)}`,
     MCP_SUMMARY: (apiHost: string) =>
       `/api/v1/mcps/${encodeURIComponent(apiHost)}/summary`,
+    APIS: "/api/v1/apis",
+    API: (apiHost: string) => `/api/v1/apis/${encodeURIComponent(apiHost)}`,
+    API_SUMMARY: (apiHost: string) =>
+      `/api/v1/apis/${encodeURIComponent(apiHost)}/summary`,
+    API_FLOW: (apiHost: string) =>
+      `/api/v1/apis/${encodeURIComponent(apiHost)}/flow`,
+    API_EXECUTE: (apiHost: string) =>
+      `/api/v1/apis/${encodeURIComponent(apiHost)}/execute`,
+    SKILL_BY_NAME: (name: string) =>
+      `/api/v1/skills/by-name/${encodeURIComponent(name)}`,
     SKILLS: "/api/v1/skills",
     SKILL: (apiHost: string) => `/api/v1/skills/${encodeURIComponent(apiHost)}`,
     SKILL_MARKDOWN: (apiHost: string) =>
@@ -183,6 +198,63 @@ export class RaidrClient {
       this.config.ENDPOINTS.MCP(apiHost),
       apiKey ? { apiKey } : {},
     );
+  }
+
+  /** `GET /api/v1/apis` - one page of API doc summaries (no endpoints); public. */
+  getApis(params?: ListQueryParams): Promise<PaginatedResponse<ApiDocSummary>> {
+    return this.request(this.config.ENDPOINTS.APIS, { query: { ...params } });
+  }
+
+  /** `GET /api/v1/apis/:apiHost/summary` - public; title and endpoint count only. */
+  getApiSummary(apiHost: string): Promise<BaseResponse<ApiDocSummary>> {
+    return this.request(this.config.ENDPOINTS.API_SUMMARY(apiHost));
+  }
+
+  /**
+   * `GET /api/v1/apis/:apiHost` - the full endpoint docs. Needs a signed-in
+   * user (the browser NetworkClient adds the token) or an entity key as `apiKey`.
+   */
+  getApiDoc(
+    apiHost: string,
+    apiKey?: string,
+  ): Promise<BaseResponse<ApiDocRow>> {
+    return this.request(
+      this.config.ENDPOINTS.API(apiHost),
+      apiKey ? { apiKey } : {},
+    );
+  }
+
+  /**
+   * `POST /api/v1/apis/:apiHost/execute` - run one endpoint through raidr's
+   * proxy. Same credentials as `getApiDoc`. The user's site token and any
+   * application key travel in the body and are never stored.
+   */
+  executeApi(
+    apiHost: string,
+    data: ApiExecuteRequest,
+    apiKey?: string,
+  ): Promise<BaseResponse<ApiExecuteResult>> {
+    return this.request(this.config.ENDPOINTS.API_EXECUTE(apiHost), {
+      method: "POST",
+      body: data,
+      ...(apiKey ? { apiKey } : {}),
+    });
+  }
+
+  /**
+   * `GET /api/v1/apis/:apiHost/flow` - every flow link touching this host,
+   * with labels for endpoints on other hosts. Same access as `getApiDoc`.
+   */
+  getApiFlow(apiHost: string, apiKey?: string): Promise<BaseResponse<ApiFlow>> {
+    return this.request(
+      this.config.ENDPOINTS.API_FLOW(apiHost),
+      apiKey ? { apiKey } : {},
+    );
+  }
+
+  /** `GET /api/v1/skills/by-name/:name` - one skill by its slug. */
+  getSkillByName(name: string): Promise<BaseResponse<Skill>> {
+    return this.request(this.config.ENDPOINTS.SKILL_BY_NAME(name));
   }
 
   /** Public top-level info for one MCP (no manifest); no auth needed. */
